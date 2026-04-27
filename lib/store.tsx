@@ -67,6 +67,7 @@ interface AppState {
   addBooking: (booking: Omit<Booking, 'id'>) => void;
   confirmBooking: (id: string) => void;
   cancelBooking: (id: string) => void;
+  deleteBooking: (id: string) => void;
   addTrainingSession: (session: Omit<TrainingSession, 'id'>) => void;
   removeTrainingSession: (id: string) => void;
 }
@@ -300,6 +301,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setBookings(prev => prev.map(b => b.id === id ? { ...b, status: 'Cancelled' } : b));
   };
 
+  const deleteBooking = (id: string) => {
+    setBookings(prev => prev.filter(b => b.id !== id));
+  };
+
   const addTrainingSession = (session: Omit<TrainingSession, 'id'>) => {
     setTrainingSessions(prev => [...prev, { ...session, id: Math.random().toString(36).substr(2, 9) }]);
   };
@@ -315,7 +320,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       user, login, logout,
       fields, bookings, trainingSessions,
       addField, updateField, deleteField,
-      addBooking, confirmBooking, cancelBooking,
+      addBooking, confirmBooking, cancelBooking, deleteBooking,
       addTrainingSession, removeTrainingSession
     }}>
       {children}

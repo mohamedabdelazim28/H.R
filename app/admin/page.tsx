@@ -8,7 +8,7 @@ import { LayoutDashboard, Plus, Trash2, Edit2, Calendar, CheckCircle2, XCircle, 
 
 export default function AdminDashboard() {
   const router = useRouter();
-  const { user, fields, bookings, trainingSessions, addField, deleteField, confirmBooking, cancelBooking, addTrainingSession, removeTrainingSession } = useAppStore();
+  const { user, fields, bookings, trainingSessions, addField, deleteField, confirmBooking, cancelBooking, deleteBooking, addTrainingSession, removeTrainingSession } = useAppStore();
 
   const [activeTab, setActiveTab] = useState<'fields' | 'bookings' | 'training'>('bookings');
 
@@ -275,6 +275,11 @@ export default function AdminDashboard() {
                           {(booking.status === 'Pending' || booking.status === 'Confirmed') && (
                             <button onClick={() => cancelBooking(booking.id)} className="text-[#ef4444] hover:bg-[#fef2f2] border border-[#fecaca] p-1.5 rounded-lg transition-colors" title="إلغاء الحجز">
                               <XCircle className="w-4 h-4" />
+                            </button>
+                          )}
+                          {booking.status === 'Cancelled' && (
+                            <button onClick={() => { if (confirm('هل أنت متأكد من مسح الحجز؟')) deleteBooking(booking.id) }} className="text-[#ef4444] hover:bg-[#fef2f2] border border-[#fecaca] p-1.5 rounded-lg transition-colors" title="مسح الحجز">
+                              <Trash2 className="w-4 h-4" />
                             </button>
                           )}
                         </td>
