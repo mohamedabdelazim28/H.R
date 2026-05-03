@@ -8,16 +8,19 @@ import { LayoutDashboard, Plus, Trash2, Edit2, Calendar, CheckCircle2, XCircle, 
 
 export default function AdminDashboard() {
   const router = useRouter();
-  const { user, fields, bookings, trainingSessions, addField, deleteField, confirmBooking, cancelBooking, deleteBooking, addTrainingSession, removeTrainingSession } = useAppStore();
+  const { user, fields, bookings, trainingSessions, coaches, addField, deleteField, confirmBooking, cancelBooking, deleteBooking, addTrainingSession, removeTrainingSession, addCoach, removeCoach } = useAppStore();
 
-  const [activeTab, setActiveTab] = useState<'fields' | 'bookings' | 'training'>('bookings');
+  const [activeTab, setActiveTab] = useState<'fields' | 'bookings' | 'training' | 'coaches'>('bookings');
 
   // Create Field form state
   const [isAddingField, setIsAddingField] = useState(false);
   const [newField, setNewField] = useState({ name: '', location: 'مدينة العبور', price: 0, type: '5v5', description: '', image: '', map: '', phone: '' });
 
   // Training form state
-  const [newTraining, setNewTraining] = useState({ fieldId: '', date: '', time: '18:00' });
+  const [newTraining, setNewTraining] = useState({ fieldId: '', date: '', time: '18:00', coachName: '', ageGroup: '2013' });
+
+  // Coach form state
+  const [newCoach, setNewCoach] = useState({ name: '', fieldId: '' });
 
   // Security check
   useEffect(() => {
@@ -57,8 +60,20 @@ export default function AdminDashboard() {
       fieldId: newTraining.fieldId,
       date: newTraining.date,
       time: newTraining.time,
+      coachName: newTraining.coachName,
+      ageGroup: newTraining.ageGroup,
     });
     alert('تم إضافة جلسة التدريب بنجاح');
+  };
+
+  const handleAddCoach = (e: React.FormEvent) => {
+    e.preventDefault();
+    addCoach({
+      name: newCoach.name,
+      fieldId: newCoach.fieldId,
+    });
+    setNewCoach({ name: '', fieldId: '' });
+    alert('تم إضافة المدرب بنجاح');
   };
 
   return (
@@ -100,6 +115,12 @@ export default function AdminDashboard() {
 
         {/* Tabs */}
         <div className="flex justify-end gap-3 mb-8">
+          <button
+            onClick={() => setActiveTab('coaches')}
+            className={`px-6 py-2.5 rounded-xl font-bold transition-all ${activeTab === 'coaches' ? 'bg-[#2f55d4] text-white shadow-md shadow-blue-500/20' : 'bg-white border border-gray-200 text-gray-500 hover:text-gray-900'}`}
+          >
+            المدربين
+          </button>
           <button
             onClick={() => setActiveTab('training')}
             className={`px-6 py-2.5 rounded-xl font-bold transition-all ${activeTab === 'training' ? 'bg-[#2f55d4] text-white shadow-md shadow-blue-500/20' : 'bg-white border border-gray-200 text-gray-500 hover:text-gray-900'}`}
@@ -240,9 +261,8 @@ export default function AdminDashboard() {
                 <tbody className="bg-white divide-y divide-gray-50">
                   {bookings.map(booking => {
                     const field = fields.find(f => String(f.id) === String(booking.fieldId));
-                    // Fake user name derived from email for display
-                    const userName = (booking.userEmail || '').split('@')[0].replace(/[0-9]/g, '');
-                    const displayName = userName.length > 2 ? userName : 'أحمد محمد';
+                    // User name derived from booking or fallback to email
+                    const displayName = booking.userName || (booking.userEmail || '').split('@')[0].replace(/[0-9]/g, '') || 'غير معروف';
                     const avatarLetter = displayName.charAt(0).toUpperCase() || 'م';
 
                     return (
@@ -251,7 +271,10 @@ export default function AdminDashboard() {
                         <td className="px-6 py-5 text-[13px] text-gray-500 dir-ltr text-right font-medium">{booking.time} • {booking.date}</td>
                         <td className="px-6 py-5">
                           <div className="flex items-center justify-end gap-3">
-                            <span className="text-sm font-bold text-gray-700">{displayName}</span>
+                            <div className="flex flex-col items-end">
+                              <span className="text-sm font-bold text-gray-700">{displayName}</span>
+                              {booking.userPhone && <span className="text-xs text-gray-500 dir-ltr">{booking.userPhone}</span>}
+                            </div>
                             <div className="w-8 h-8 rounded-full bg-[#2f55d4] text-white flex items-center justify-center font-bold text-sm">
                               {avatarLetter}
                             </div>
@@ -318,6 +341,25 @@ export default function AdminDashboard() {
                   {['18:00', '19:00', '20:00', '21:00', '22:00', '23:00'].map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
               </div>
+              <div className="flex-none min-w-[120px]">
+                <label htmlFor="training-age" className="block text-xs font-bold text-gray-500 uppercase mb-1">مواليد (الدفعة)</label>
+                <select id="training-age" title="مواليد" required value={newTraining.ageGroup} onChange={e => setNewTraining({ ...newTraining, ageGroup: e.target.value })} className="w-full border p-2.5 rounded-xl">
+                  {Array.from({ length: 20 }, (_, i) => 2005 + i).map(year => <option key={year} value={year}>{year}</option>)}
+                </select>
+              </div>
+              <div className="flex-none min-w-[150px]">
+                <label htmlFor="training-coach" className="block text-xs font-bold text-gray-500 uppercase mb-1">المدرب</label>
+                <select id="training-coach" title="المدرب" required value={newTraining.coachName} onChange={e => setNewTraining({ ...newTraining, coachName: e.target.value })} className="w-full border p-2.5 rounded-xl">
+                  <option value="">اختر المدرب...</option>
+                  {coaches.filter(c => String(c.fieldId) === String(newTraining.fieldId)).map(coach => (
+                    <option key={coach.id} value={coach.name}>{coach.name}</option>
+                  ))}
+                  {/* Fallback if no coaches exist for this field */}
+                  {coaches.filter(c => String(c.fieldId) === String(newTraining.fieldId)).length === 0 && newTraining.fieldId !== '' && (
+                    <option value="مدرب عام">مدرب عام</option>
+                  )}
+                </select>
+              </div>
               <button type="submit" className="bg-green-600 hover:bg-green-700 text-white px-6 py-2.5 rounded-xl font-bold transition-colors">
                 إضافة تدريب
               </button>
@@ -327,9 +369,11 @@ export default function AdminDashboard() {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
+                    <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">ID</th>
                     <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">الملعب</th>
-                    <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">التاريخ</th>
-                    <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">الوقت</th>
+                    <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">التاريخ والوقت</th>
+                    <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">المدرب</th>
+                    <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">مواليد</th>
                     <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">الإجراءات</th>
                   </tr>
                 </thead>
@@ -338,9 +382,11 @@ export default function AdminDashboard() {
                     const field = fields.find(f => String(f.id) === String(session.fieldId));
                     return (
                       <tr key={session.id}>
+                        <td className="px-6 py-4 text-xs font-medium text-gray-400 dir-ltr text-right">{session.id}</td>
                         <td className="px-6 py-4 text-sm font-bold text-gray-900">{field?.name || 'غير معروف'}</td>
-                        <td className="px-6 py-4 text-sm text-gray-500">{session.date}</td>
-                        <td className="px-6 py-4 text-sm text-gray-500 font-medium dir-ltr text-right">{session.time}</td>
+                        <td className="px-6 py-4 text-[13px] text-gray-500 dir-ltr text-right font-medium">{session.time} • {session.date}</td>
+                        <td className="px-6 py-4 text-sm font-bold text-gray-700">{session.coachName || '-'}</td>
+                        <td className="px-6 py-4 text-sm text-gray-500 dir-ltr text-right">{session.ageGroup || '-'}</td>
                         <td className="px-6 py-4 text-left">
                           <button onClick={() => removeTrainingSession(session.id)} className="text-red-500 hover:text-red-700 bg-red-50 p-2 rounded-lg inline-flex" title="إلغاء التدريب">
                             <Trash2 className="w-4 h-4" />
@@ -352,6 +398,61 @@ export default function AdminDashboard() {
                 </tbody>
               </table>
               {trainingSessions.length === 0 && <div className="p-8 text-center text-gray-500 font-medium">لا توجد تدريبات مضافة.</div>}
+            </div>
+          </div>
+        )}
+
+        {/* Coaches Tab */}
+        {activeTab === 'coaches' && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-bold text-gray-900">إدارة المدربين ({coaches.length})</h2>
+            </div>
+
+            <form onSubmit={handleAddCoach} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-wrap gap-4 items-end">
+              <div className="flex-1 min-w-[200px]">
+                <label htmlFor="coach-name" className="block text-xs font-bold text-gray-500 uppercase mb-1">اسم المدرب</label>
+                <input id="coach-name" title="اسم المدرب" required value={newCoach.name} onChange={e => setNewCoach({ ...newCoach, name: e.target.value })} className="w-full border p-2.5 rounded-xl" placeholder="مثال: كابتن محمد" />
+              </div>
+              <div className="flex-1 min-w-[200px]">
+                <label htmlFor="coach-field" className="block text-xs font-bold text-gray-500 uppercase mb-1">يتبع ملعب</label>
+                <select id="coach-field" title="الملعب" required value={newCoach.fieldId} onChange={e => setNewCoach({ ...newCoach, fieldId: e.target.value })} className="w-full border p-2.5 rounded-xl">
+                  <option value="">اختار الملعب...</option>
+                  {fields.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+                </select>
+              </div>
+              <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-xl font-bold transition-colors">
+                إضافة مدرب
+              </button>
+            </form>
+
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">اسم المدرب</th>
+                    <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">الملعب</th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">الإجراءات</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {coaches.map(coach => {
+                    const field = fields.find(f => String(f.id) === String(coach.fieldId));
+                    return (
+                      <tr key={coach.id}>
+                        <td className="px-6 py-4 text-sm font-bold text-gray-900">{coach.name}</td>
+                        <td className="px-6 py-4 text-sm text-gray-500">{field?.name || 'غير معروف'}</td>
+                        <td className="px-6 py-4 text-left">
+                          <button onClick={() => removeCoach(coach.id)} className="text-red-500 hover:text-red-700 bg-red-50 p-2 rounded-lg inline-flex" title="مسح المدرب">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              {coaches.length === 0 && <div className="p-8 text-center text-gray-500 font-medium">لا يوجد مدربين.</div>}
             </div>
           </div>
         )}

@@ -17,6 +17,12 @@ export default function FieldPage({ params }: { params: Promise<{ id: string }> 
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const dateString = selectedDate.toISOString().split('T')[0];
 
+  // Booking Modal State
+  const [showBookingModal, setShowBookingModal] = useState(false);
+  const [bookingTime, setBookingTime] = useState('');
+  const [userName, setUserName] = useState('');
+  const [userPhone, setUserPhone] = useState('');
+
   if (!field) {
     return (
       <main className="min-h-screen bg-[#f4f8fb] flex flex-col font-sans" dir="rtl">
@@ -60,16 +66,8 @@ export default function FieldPage({ params }: { params: Promise<{ id: string }> 
 
     const status = getSlotStatus(time);
     if (status === 'Available') {
-      if (confirm(`هل تريد حجز هذا الملعب الساعة ${time}؟`)) {
-        addBooking({
-          fieldId: field.id,
-          userEmail: user.email,
-          date: dateString,
-          time,
-          status: 'Pending'
-        });
-        alert(`تم حجز ${field.name} الساعة ${time} بنجاح! في انتظار التأكيد.`);
-      }
+      setBookingTime(time);
+      setShowBookingModal(true);
     } else if (status === 'Booked') {
       const bookingToCancel = bookings.find(
         b => String(b.fieldId) === String(field.id) && b.date === dateString && b.time === time && (b.status === 'Pending' || b.status === 'Confirmed') && b.userEmail === user.email
@@ -92,6 +90,28 @@ export default function FieldPage({ params }: { params: Promise<{ id: string }> 
       case 'BookedByOther': return 'bg-red-50 text-red-700 border-red-200 cursor-not-allowed opacity-75'; // non-interactable
       case 'Training': return 'bg-yellow-50 text-yellow-700 border-yellow-200 cursor-not-allowed opacity-75';
     }
+  };
+
+  const submitBooking = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!userName || !userPhone) {
+      alert('يرجى إدخال الاسم ورقم الهاتف');
+      return;
+    }
+    addBooking({
+      fieldId: field.id,
+      userEmail: user?.email,
+      userName,
+      userPhone,
+      date: dateString,
+      time: bookingTime,
+      status: 'Pending'
+    });
+    alert(`تم حجز ${field.name} الساعة ${bookingTime} بنجاح! في انتظار التأكيد.`);
+    setShowBookingModal(false);
+    setBookingTime('');
+    setUserName('');
+    setUserPhone('');
   };
 
   return (
@@ -200,6 +220,26 @@ export default function FieldPage({ params }: { params: Promise<{ id: string }> 
             </div>
           )}
 
+          {/* Training Note */}
+          {trainingSessions.filter(ts => String(ts.fieldId) === String(field.id) && ts.date === dateString).length > 0 && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-3xl p-8 shadow-sm flex flex-col gap-4">
+              <h2 className="text-xl font-bold text-yellow-800 flex items-center gap-2">
+                <Info className="w-6 h-6" />
+                ملاحظة هامة بخصوص التدريبات
+              </h2>
+              <div className="space-y-3">
+                {trainingSessions.filter(ts => String(ts.fieldId) === String(field.id) && ts.date === dateString).map(ts => (
+                  <div key={ts.id} className="bg-white/60 p-4 rounded-xl border border-yellow-100 flex items-center gap-2">
+                    <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                    <p className="text-yellow-900 font-medium">
+                      يوجد تمرين اليوم الساعة <span className="font-bold dir-ltr inline-block text-xl mx-1">{ts.time}</span> لمواليد <span className="font-bold text-xl mx-1">{ts.ageGroup || 'غير محدد'}</span> كابتن <span className="font-bold mx-1">{ts.coachName || 'المدرب'}</span>.
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
         </div>
 
         {/* Right Column: Booking */}
@@ -265,6 +305,59 @@ export default function FieldPage({ params }: { params: Promise<{ id: string }> 
         </div>
 
       </div>
+
+      {/* Booking Modal */}
+      {showBookingModal && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-[32px] p-8 max-w-md w-full shadow-2xl relative animate-in fade-in zoom-in duration-200">
+            <h3 className="text-2xl font-bold text-gray-900 mb-2">تأكيد الحجز</h3>
+            <p className="text-gray-500 mb-6 font-medium">
+              سيتم حجز الموعد الساعة <span className="font-bold text-[#4caf50] dir-ltr inline-block mx-1">{bookingTime}</span> بتاريخ {dateString}
+            </p>
+
+            <form onSubmit={submitBooking} className="space-y-4">
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">الاسم بالكامل</label>
+                <input
+                  required
+                  type="text"
+                  value={userName}
+                  onChange={(e) => setUserName(e.target.value)}
+                  className="w-full border-2 border-gray-100 rounded-xl px-4 py-3 bg-[#f4f7fb] focus:outline-none focus:ring-4 focus:ring-[#4caf50]/20 focus:border-[#4caf50]"
+                  placeholder="ادخل اسمك ليعرفه مدير الملعب"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">رقم التليفون</label>
+                <input
+                  required
+                  type="tel"
+                  value={userPhone}
+                  onChange={(e) => setUserPhone(e.target.value)}
+                  className="w-full border-2 border-gray-100 rounded-xl px-4 py-3 bg-[#f4f7fb] focus:outline-none focus:ring-4 focus:ring-[#4caf50]/20 focus:border-[#4caf50] dir-ltr text-left"
+                  placeholder="010..."
+                />
+              </div>
+
+              <div className="flex gap-3 pt-4 mt-6 border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={() => setShowBookingModal(false)}
+                  className="flex-1 px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-bold transition-colors"
+                >
+                  إلغاء
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 px-4 py-3 bg-[#4caf50] hover:bg-[#43a047] text-white rounded-xl font-bold transition-colors shadow-lg shadow-green-500/20"
+                >
+                  تأكيد الحجز
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

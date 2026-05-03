@@ -37,6 +37,8 @@ export type Booking = {
   id: string;
   fieldId: string | number;
   userEmail?: string;
+  userName?: string;
+  userPhone?: string;
   date: string;
   time: string;
   status: 'Pending' | 'Confirmed' | 'Cancelled';
@@ -52,6 +54,14 @@ export type TrainingSession = {
   fieldId: string | number;
   date: string;
   time: string;
+  coachName?: string;
+  ageGroup?: string;
+};
+
+export type Coach = {
+  id: string;
+  name: string;
+  fieldId: string | number; // To associate coach with a specific field (or empty if general)
 };
 
 interface AppState {
@@ -59,6 +69,7 @@ interface AppState {
   fields: Field[];
   bookings: Booking[];
   trainingSessions: TrainingSession[];
+  coaches: Coach[];
   login: (email: string, password: string) => boolean;
   logout: () => void;
   addField: (field: Omit<Field, 'id'>) => void;
@@ -70,6 +81,8 @@ interface AppState {
   deleteBooking: (id: string) => void;
   addTrainingSession: (session: Omit<TrainingSession, 'id'>) => void;
   removeTrainingSession: (id: string) => void;
+  addCoach: (coach: Omit<Coach, 'id'>) => void;
+  removeCoach: (id: string) => void;
 }
 
 const mockFields: Field[] = [
@@ -201,6 +214,13 @@ const mockFields: Field[] = [
   }
 ];
 
+const mockCoaches: Coach[] = [
+  { id: '1', name: 'كابتن جمعه', fieldId: '6' },
+  { id: '2', name: 'كابتن احمد', fieldId: '6' },
+  { id: '3', name: 'كابتن جيمي', fieldId: '8' },
+  { id: '4', name: 'كابتن محمد', fieldId: '8' }
+];
+
 const AppContext = createContext<AppState | undefined>(undefined);
 
 export function AppProvider({ children }: { children: ReactNode }) {
@@ -208,6 +228,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [fields, setFields] = useState<Field[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [trainingSessions, setTrainingSessions] = useState<TrainingSession[]>([]);
+  const [coaches, setCoaches] = useState<Coach[]>([]);
   const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
@@ -215,6 +236,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const storedFields = localStorage.getItem('fields');
     const storedBookings = localStorage.getItem('bookings');
     const storedTraining = localStorage.getItem('trainingSessions');
+    const storedCoaches = localStorage.getItem('coaches');
 
     if (storedUser) setUser(JSON.parse(storedUser));
 
@@ -236,6 +258,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     if (storedBookings) setBookings(JSON.parse(storedBookings));
     if (storedTraining) setTrainingSessions(JSON.parse(storedTraining));
+    if (storedCoaches) {
+      setCoaches(JSON.parse(storedCoaches));
+    } else {
+      setCoaches(mockCoaches);
+      localStorage.setItem('coaches', JSON.stringify(mockCoaches));
+    }
 
     setIsInitialized(true);
   }, []);
@@ -256,6 +284,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (isInitialized) localStorage.setItem('trainingSessions', JSON.stringify(trainingSessions));
   }, [trainingSessions, isInitialized]);
+
+  useEffect(() => {
+    if (isInitialized) localStorage.setItem('coaches', JSON.stringify(coaches));
+  }, [coaches, isInitialized]);
 
   const login = (email: string, password: string): boolean => {
     // Admin override
@@ -313,15 +345,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setTrainingSessions(prev => prev.filter(s => s.id !== id));
   };
 
+  const addCoach = (coach: Omit<Coach, 'id'>) => {
+    setCoaches(prev => [...prev, { ...coach, id: Math.random().toString(36).substr(2, 9) }]);
+  };
+
+  const removeCoach = (id: string) => {
+    setCoaches(prev => prev.filter(c => c.id !== id));
+  };
+
   if (!isInitialized) return null;
 
   return (
     <AppContext.Provider value={{
       user, login, logout,
-      fields, bookings, trainingSessions,
+      fields, bookings, trainingSessions, coaches,
       addField, updateField, deleteField,
       addBooking, confirmBooking, cancelBooking, deleteBooking,
-      addTrainingSession, removeTrainingSession
+      addTrainingSession, removeTrainingSession,
+      addCoach, removeCoach
     }}>
       {children}
     </AppContext.Provider>
